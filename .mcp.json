@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "your-mcp-server-name": {
+      "command": "node",
+      "args": ["./build/index.js"],
+      "env": {}
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "type": "module",
+  "version": "1.0.0",
+  "name": "mcp-server-template",
+  "description": "",
+  "bin": {
+    "your-mcp-server-name": "./build/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && chmod 755 build/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.3",
+    "zod": "^3.25.64"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.1",
+    "typescript": "^5.8.3"
+  }
+}
