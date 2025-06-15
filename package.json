@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "name": "procm-mcp",
   "description": "A Model Context Protocol (MCP) server for process management.",
   "bin": {

@@ -458,6 +458,13 @@ process.on("SIGTERM", () => {
   process.exit(0);
 });
 
+process.on("uncaughtException", (error) => {
+  serverLog(`Uncaught exception: ${toErrorMessage(error)}`);
+  // Clean up all processes on uncaught exception
+  cleanup();
+  process.exit(1);
+});
+
 try {
   const transport = new StdioServerTransport();
   await server.connect(transport);
