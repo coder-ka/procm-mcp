@@ -13,7 +13,7 @@ A Model Context Protocol (MCP) server for process management. This tool allows y
 ## Installation
 
 ```bash
-npm install
+npm i -D procm-mcp
 ```
 
 ## `.mcp.json`
@@ -52,7 +52,7 @@ Get detailed information about a process
 - `id` (required): The process ID
 
 ### list-processes
-List all currently running processes
+List all currently managed processes
 - No parameters required
 
 ### get-process-stdout
