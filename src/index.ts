@@ -228,7 +228,9 @@ server.tool(
         ],
       };
     }
-    const stdout = stdoutLogs.map((log) => log.message).join("\n");
+    const stdout = stdoutLogs
+      .map((log) => `[${log.timestamp}] ${log.message}`)
+      .join("\n");
     return {
       content: [
         {
@@ -272,7 +274,9 @@ server.tool(
       };
     }
 
-    const stderr = stderrLogs.map((log) => log.message).join("\n");
+    const stderr = stderrLogs
+      .map((log) => `[${log.timestamp}] ${log.message}`)
+      .join("\n");
 
     return {
       content: [
