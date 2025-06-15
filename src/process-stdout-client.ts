@@ -1,7 +1,7 @@
 import { JSONFilePreset } from "lowdb/node";
-import { tmpdir } from "os";
 import path from "path";
 import { Readable } from "stream";
+import { createServerDir } from "./server-dir.js";
 
 export type ProcessStdoutChunk = {
   timestamp: string;
@@ -17,13 +17,15 @@ export async function createProcessStdoutClient({
   id,
   type,
   readable,
+  serverId,
 }: {
   id: string;
   type: "stdout" | "stderr";
   readable: Readable;
+  serverId: string;
 }): Promise<ProcessStdoutClient> {
-  const tmpPath = tmpdir();
-  const filePath = path.join(tmpPath, id, `${type}.json`);
+  const serverDir = createServerDir({ serverId });
+  const filePath = path.join(serverDir, `${type}.json`);
   const db = await JSONFilePreset<ProcessStdoutChunk[]>(filePath, []);
 
   const updateQueue = createUpdateQueue();

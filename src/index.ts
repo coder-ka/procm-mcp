@@ -555,11 +555,13 @@ async function startProcess(
         id: processId,
         type: "stdout",
         readable: childProcess.stdout,
+        serverId,
       }),
       await createProcessStdoutClient({
         id: processId,
         type: "stderr",
         readable: childProcess.stderr,
+        serverId,
       }),
     ]);
 
