@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "your-mcp-server-name": {
+    "procm-mcp": {
       "command": "node",
       "args": ["./build/index.js"],
       "env": {}
