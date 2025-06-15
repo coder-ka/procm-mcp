@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "name": "procm-mcp",
   "description": "A Model Context Protocol (MCP) server for process management.",
   "bin": {
@@ -19,6 +19,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.3",
     "lowdb": "^7.0.1",
+    "mkdirp": "^3.0.1",
     "nanoid": "^5.1.5",
     "zod": "^3.25.64"
   },
