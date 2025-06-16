@@ -610,12 +610,19 @@ function killProcess(processMetadata: ProcessMetadata) {
 
     const pid = processMetadata.process.pid;
     if (pid) {
-      kill(pid)
+      kill(pid, (err) => {
+        if (err) {
+          serverLog(
+            `Error killing process: ${processMetadata.name} (ID: ${processMetadata.id}) - ${err}`
+          );
+          throw err;
+        } else {
+          serverLog(
+            `Process killed successfully: ${processMetadata.name} (ID: ${processMetadata.id})`
+          );
+        }
+      });
     }
-    
-    serverLog(
-      `Process killed: ${processMetadata.name} (ID: ${processMetadata.id})`
-    );
   } catch (error) {
     serverLog(
       `Error killing process: ${processMetadata.name} (ID: ${processMetadata.id}) - ${error}`
