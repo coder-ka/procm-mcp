@@ -1,3 +1,4 @@
+import fs from "fs";
 import path from "path";
 import { Readable } from "stream";
 import { createServerDir } from "./server-dir.js";
@@ -27,6 +28,7 @@ export async function createProcessStdoutClient({
 }): Promise<ProcessStdoutClient> {
   const serverDir = createServerDir({ serverId });
   const filePath = path.join(serverDir, "processes", `${id}-${type}.sqlite3`);
+  const textFilePath = path.join(serverDir, "processes", `${id}-${type}.log`);
   await mkdirp(path.dirname(filePath));
 
   const db = await new Promise<sqlite3.Database>((resolve, reject) => {
@@ -59,19 +61,30 @@ export async function createProcessStdoutClient({
     const timestamp = new Date().toISOString();
 
     updateQueue.unshift(async () => {
-      await new Promise<void>((resolve, reject) => {
-        db.run(
-          "INSERT INTO logs (timestamp, message) VALUES (?, ?)",
-          [timestamp, message],
-          (err) => {
+      await Promise.all([
+        new Promise<void>(async (resolve, reject) => {
+          db.run(
+            "INSERT INTO logs (timestamp, message) VALUES (?, ?)",
+            [timestamp, message],
+            (err) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
+            }
+          );
+        }),
+        new Promise<void>((resolve, reject) => {
+          fs.appendFile(textFilePath, message, { encoding: "utf8" }, (err) => {
             if (err) {
               reject(err);
             } else {
               resolve();
             }
-          }
-        );
-      });
+          });
+        }),
+      ]);
     });
   };
 
