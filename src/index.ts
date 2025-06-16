@@ -64,7 +64,13 @@ try {
       try {
         const processId = generateProcessId();
         const command = createCommand(script, args);
-        const startedProcess = await startProcess(script, name, args, cwd);
+        const startedProcess = await startProcess(
+          processId,
+          script,
+          name,
+          args,
+          cwd
+        );
 
         processes.push(startedProcess);
 
@@ -177,7 +183,10 @@ try {
         ) {
           killProcess(processMetadata);
         }
+
+        const processId = generateProcessId();
         const newProcess = await startProcess(
+          processId,
           processMetadata.script,
           processMetadata.name,
           processMetadata.args,
@@ -506,6 +515,7 @@ function cleanup() {
 }
 
 async function startProcess(
+  processId: string,
   script: string,
   name: string | undefined,
   args: string[] | undefined,
@@ -518,7 +528,6 @@ async function startProcess(
   );
 
   try {
-    const processId = generateProcessId();
     const command = createCommand(script, args);
 
     const childProcess = spawn(script, args || [], {
