@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import { ChildProcess, spawn } from "child_process";
+import kill from "tree-kill";
 import {
   createProcessStdoutClient,
   ProcessStdoutClient,
@@ -606,7 +607,12 @@ function killProcess(processMetadata: ProcessMetadata) {
   try {
     processMetadata.stdoutClient.close();
     processMetadata.stderrClient.close();
-    processMetadata.process.kill();
+
+    const pid = processMetadata.process.pid;
+    if (pid) {
+      kill(pid)
+    }
+    
     serverLog(
       `Process killed: ${processMetadata.name} (ID: ${processMetadata.id})`
     );
