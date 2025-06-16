@@ -10,12 +10,6 @@ import {
 import { log } from "./logger.js";
 
 const serverId = nanoid(6);
-
-const server = new McpServer({
-  name: "procm-mcp",
-  version: "1.0.0",
-});
-
 type ProcessMetadata = {
   id: string;
   name: string;
@@ -32,440 +26,445 @@ type ProcessMetadata = {
 
 const processes: ProcessMetadata[] = [];
 
-server.tool("get-server-id", "Get server id", {}, async () => {
-  serverLog("get-server-id tool called");
-  return {
-    content: [
-      {
-        type: "text",
-        text: `Server ID: ${serverId}`,
-      },
-    ],
-  };
-});
+try {
+  const server = new McpServer({
+    name: "procm-mcp",
+    version: "1.0.0",
+  });
 
-server.tool(
-  "start-process",
-  "Start a new process",
-  {
-    script: z.string(),
-    name: z.string().optional(),
-    args: z.array(z.string()).optional(),
-    cwd: z.string(),
-  },
-  async ({ script, name, args, cwd }) => {
-    logToolStart("start-process", {
-      script,
-      name,
-      args,
-      cwd,
-    });
+  server.tool("get-server-id", "Get server id", {}, async () => {
+    serverLog("get-server-id tool called");
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Server ID: ${serverId}`,
+        },
+      ],
+    };
+  });
 
-    try {
-      const processId = generateProcessId();
-      const command = createCommand(script, args);
-      const startedProcess = await startProcess(script, name, args, cwd);
-
-      processes.push(startedProcess);
-
-      logToolEnd("start-process", {
-        id: processId,
-        name: name || command,
+  server.tool(
+    "start-process",
+    "Start a new process",
+    {
+      script: z.string(),
+      name: z.string().optional(),
+      args: z.array(z.string()).optional(),
+      cwd: z.string(),
+    },
+    async ({ script, name, args, cwd }) => {
+      logToolStart("start-process", {
         script,
-        args: args || [],
+        name,
+        args,
         cwd,
       });
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Process started: ${name || command} (ID: ${processId})`,
-          },
-        ],
-      };
-    } catch (error) {
-      logToolError("start-process", error);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error starting process: ${toErrorMessage(error)}`,
-          },
-        ],
-      };
-    }
-  }
-);
+      try {
+        const processId = generateProcessId();
+        const command = createCommand(script, args);
+        const startedProcess = await startProcess(script, name, args, cwd);
 
-server.tool(
-  "delete-process",
-  "Delete a process by ID",
-  {
-    id: z.string(),
-  },
-  async ({ id }) => {
-    logToolStart("delete-process", { id });
+        processes.push(startedProcess);
 
-    try {
-      const processIndex = processes.findIndex((p) => p.id === id);
-      if (processIndex === -1) {
+        logToolEnd("start-process", {
+          id: processId,
+          name: name || command,
+          script,
+          args: args || [],
+          cwd,
+        });
+
         return {
           content: [
             {
               type: "text",
-              text: `Process with ID ${id} not found.`,
+              text: `Process started: ${name || command} (ID: ${processId})`,
             },
           ],
         };
-      }
-      const processMetadata = processes[processIndex];
-
-      killProcess(processMetadata);
-      processes.splice(processIndex, 1);
-
-      logToolEnd("delete-process", { id });
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Process with ID ${id} has been deleted.`,
-          },
-        ],
-      };
-    } catch (error) {
-      logToolError("delete-process", error);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error deleting process: ${toErrorMessage(error)}`,
-          },
-        ],
-      };
-    }
-  }
-);
-
-server.tool(
-  "restart-process",
-  "Restart a process by ID",
-  {
-    id: z.string(),
-  },
-  async ({ id }) => {
-    logToolStart("restart-process", { id });
-
-    try {
-      const processIndex = processes.findIndex((p) => p.id === id);
-      if (processIndex === -1) {
+      } catch (error) {
+        logToolError("start-process", error);
         return {
           content: [
             {
               type: "text",
-              text: `Process with ID ${id} not found.`,
+              text: `Error starting process: ${toErrorMessage(error)}`,
             },
           ],
         };
       }
-      const processMetadata = processes[processIndex];
+    }
+  );
 
-      if (
-        processMetadata.status === "running" ||
-        processMetadata.status === "error"
-      ) {
+  server.tool(
+    "delete-process",
+    "Delete a process by ID",
+    {
+      id: z.string(),
+    },
+    async ({ id }) => {
+      logToolStart("delete-process", { id });
+
+      try {
+        const processIndex = processes.findIndex((p) => p.id === id);
+        if (processIndex === -1) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Process with ID ${id} not found.`,
+              },
+            ],
+          };
+        }
+        const processMetadata = processes[processIndex];
+
         killProcess(processMetadata);
+        processes.splice(processIndex, 1);
+
+        logToolEnd("delete-process", { id });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Process with ID ${id} has been deleted.`,
+            },
+          ],
+        };
+      } catch (error) {
+        logToolError("delete-process", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error deleting process: ${toErrorMessage(error)}`,
+            },
+          ],
+        };
       }
-      const newProcess = await startProcess(
-        processMetadata.script,
-        processMetadata.name,
-        processMetadata.args,
-        processMetadata.cwd
-      );
-      processes[processIndex] = newProcess;
-
-      logToolEnd("restart-process", { id });
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Process with ID ${id} has been restarted.`,
-          },
-        ],
-      };
-    } catch (error) {
-      logToolError("restart-process", error);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error restarting process: ${toErrorMessage(error)}`,
-          },
-        ],
-      };
     }
-  }
-);
+  );
 
-server.tool(
-  "get-process-info",
-  "Get information about a process by ID",
-  {
-    id: z.string(),
-  },
-  async ({ id }) => {
-    logToolStart("get-process-info", { id });
+  server.tool(
+    "restart-process",
+    "Restart a process by ID",
+    {
+      id: z.string(),
+    },
+    async ({ id }) => {
+      logToolStart("restart-process", { id });
+
+      try {
+        const processIndex = processes.findIndex((p) => p.id === id);
+        if (processIndex === -1) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Process with ID ${id} not found.`,
+              },
+            ],
+          };
+        }
+        const processMetadata = processes[processIndex];
+
+        if (
+          processMetadata.status === "running" ||
+          processMetadata.status === "error"
+        ) {
+          killProcess(processMetadata);
+        }
+        const newProcess = await startProcess(
+          processMetadata.script,
+          processMetadata.name,
+          processMetadata.args,
+          processMetadata.cwd
+        );
+        processes[processIndex] = newProcess;
+
+        logToolEnd("restart-process", { id });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Process with ID ${id} has been restarted.`,
+            },
+          ],
+        };
+      } catch (error) {
+        logToolError("restart-process", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error restarting process: ${toErrorMessage(error)}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "get-process-info",
+    "Get information about a process by ID",
+    {
+      id: z.string(),
+    },
+    async ({ id }) => {
+      logToolStart("get-process-info", { id });
+
+      try {
+        const processMetadata = processes.find((p) => p.id === id);
+        if (!processMetadata) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Process with ID ${id} not found.`,
+              },
+            ],
+          };
+        }
+
+        logToolEnd("get-process-info", {
+          id: processMetadata.id,
+          name: processMetadata.name,
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                `Process ID: ${processMetadata.id}\n` +
+                `Name: ${processMetadata.name}\n` +
+                `Script: ${processMetadata.script}\n` +
+                `Arguments: ${processMetadata.args.join(" ")}\n` +
+                `CWD: ${processMetadata.cwd}\n` +
+                `Status: ${processMetadata.status}\n` +
+                `Exit Code: ${processMetadata.exitCode ?? "N/A"}\n` +
+                `Error: ${processMetadata.error ?? "N/A"}`,
+            },
+          ],
+        };
+      } catch (error) {
+        logToolError("get-process-info", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error getting process info: ${toErrorMessage(error)}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool("list-processes", "List all running processes", {}, async () => {
+    logToolStart("list-processes", {});
 
     try {
-      const processMetadata = processes.find((p) => p.id === id);
-      if (!processMetadata) {
+      if (processes.length === 0) {
         return {
           content: [
             {
               type: "text",
-              text: `Process with ID ${id} not found.`,
+              text: "No processes are currently running.",
             },
           ],
         };
       }
+      const processList = processes.map((p) => ({
+        id: p.id,
+        name: p.name,
+        command: `${p.script} ${p.args.join(" ")}`,
+      }));
 
-      logToolEnd("get-process-info", {
-        id: processMetadata.id,
-        name: processMetadata.name,
-      });
+      logToolEnd("list-processes", { count: processList.length });
 
       return {
         content: [
           {
             type: "text",
-            text:
-              `Process ID: ${processMetadata.id}\n` +
-              `Name: ${processMetadata.name}\n` +
-              `Script: ${processMetadata.script}\n` +
-              `Arguments: ${processMetadata.args.join(" ")}\n` +
-              `CWD: ${processMetadata.cwd}\n` +
-              `Status: ${processMetadata.status}\n` +
-              `Exit Code: ${processMetadata.exitCode ?? "N/A"}\n` +
-              `Error: ${processMetadata.error ?? "N/A"}`,
+            text: `Running processes:\n${processList
+              .map((p) => `${p.id}: ${p.name} (${p.command})`)
+              .join("\n")}`,
           },
         ],
       };
     } catch (error) {
-      logToolError("get-process-info", error);
+      logToolError("list-processes", error);
       return {
         content: [
           {
             type: "text",
-            text: `Error getting process info: ${toErrorMessage(error)}`,
+            text: `Error listing processes: ${toErrorMessage(error)}`,
           },
         ],
       };
     }
-  }
-);
+  });
 
-server.tool("list-processes", "List all running processes", {}, async () => {
-  logToolStart("list-processes", {});
+  server.tool(
+    "get-process-stdout",
+    "Get the stdout of a process by ID",
+    {
+      id: z.string(),
+      chunkCount: z.number().optional(),
+    },
+    async ({ id, chunkCount = 10 }) => {
+      logToolStart("get-process-stdout", { id, chunkCount });
 
-  try {
-    if (processes.length === 0) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "No processes are currently running.",
-          },
-        ],
-      };
+      try {
+        const processMetadata = processes.find((p) => p.id === id);
+        if (!processMetadata) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Process with ID ${id} not found.`,
+              },
+            ],
+          };
+        }
+        const stdoutLogs = await processMetadata.stdoutClient.top(chunkCount);
+        if (stdoutLogs.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `No stdout found for process with ID ${id}.`,
+              },
+            ],
+          };
+        }
+        const stdout = stdoutLogs
+          .map((log) => `[${log.timestamp}] ${log.message}`)
+          .join("\n");
+
+        logToolEnd("get-process-stdout", { id, chunkCount });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: stdout,
+            },
+          ],
+        };
+      } catch (error) {
+        logToolError("get-process-stdout", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error getting process stdout: ${toErrorMessage(error)}`,
+            },
+          ],
+        };
+      }
     }
-    const processList = processes.map((p) => ({
-      id: p.id,
-      name: p.name,
-      command: `${p.script} ${p.args.join(" ")}`,
-    }));
+  );
 
-    logToolEnd("list-processes", { count: processList.length });
+  server.tool(
+    "get-process-stderr",
+    "Get the stderr of a process by ID",
+    {
+      id: z.string(),
+      chunkCount: z.number().optional(),
+    },
+    async ({ id, chunkCount = 10 }) => {
+      logToolStart("get-process-stderr", { id, chunkCount });
 
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Running processes:\n${processList
-            .map((p) => `${p.id}: ${p.name} (${p.command})`)
-            .join("\n")}`,
-        },
-      ],
-    };
-  } catch (error) {
-    logToolError("list-processes", error);
-    return {
-      content: [
-        {
-          type: "text",
-          text: `Error listing processes: ${toErrorMessage(error)}`,
-        },
-      ],
-    };
-  }
-});
+      try {
+        const processMetadata = processes.find((p) => p.id === id);
+        if (!processMetadata) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Process with ID ${id} not found.`,
+              },
+            ],
+          };
+        }
 
-server.tool(
-  "get-process-stdout",
-  "Get the stdout of a process by ID",
-  {
-    id: z.string(),
-    chunkCount: z.number().optional(),
-  },
-  async ({ id, chunkCount = 10 }) => {
-    logToolStart("get-process-stdout", { id, chunkCount });
+        const stderrLogs = await processMetadata.stderrClient.top(chunkCount);
+        if (stderrLogs.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `No stderr logs found for process with ID ${id}.`,
+              },
+            ],
+          };
+        }
 
-    try {
-      const processMetadata = processes.find((p) => p.id === id);
-      if (!processMetadata) {
+        const stderr = stderrLogs
+          .map((log) => `[${log.timestamp}] ${log.message}`)
+          .join("\n");
+
+        logToolEnd("get-process-stderr", { id, chunkCount });
+
         return {
           content: [
             {
               type: "text",
-              text: `Process with ID ${id} not found.`,
+              text: stderr,
             },
           ],
         };
-      }
-      const stdoutLogs = await processMetadata.stdoutClient.top(chunkCount);
-      if (stdoutLogs.length === 0) {
+      } catch (error) {
+        logToolError("get-process-stderr", error);
         return {
           content: [
             {
               type: "text",
-              text: `No stdout found for process with ID ${id}.`,
+              text: `Error getting process stderr: ${toErrorMessage(error)}`,
             },
           ],
         };
       }
-      const stdout = stdoutLogs
-        .map((log) => `[${log.timestamp}] ${log.message}`)
-        .join("\n");
-
-      logToolEnd("get-process-stdout", { id, chunkCount });
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: stdout,
-          },
-        ],
-      };
-    } catch (error) {
-      logToolError("get-process-stdout", error);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting process stdout: ${toErrorMessage(error)}`,
-          },
-        ],
-      };
     }
-  }
-);
+  );
 
-server.tool(
-  "get-process-stderr",
-  "Get the stderr of a process by ID",
-  {
-    id: z.string(),
-    chunkCount: z.number().optional(),
-  },
-  async ({ id, chunkCount = 10 }) => {
-    logToolStart("get-process-stderr", { id, chunkCount });
+  process.on("beforeExit", () => {
+    serverLog("Server is exiting, cleaning up processes...");
 
-    try {
-      const processMetadata = processes.find((p) => p.id === id);
-      if (!processMetadata) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Process with ID ${id} not found.`,
-            },
-          ],
-        };
-      }
+    // Clean up all processes before exiting
+    cleanup();
+  });
 
-      const stderrLogs = await processMetadata.stderrClient.top(chunkCount);
-      if (stderrLogs.length === 0) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `No stderr logs found for process with ID ${id}.`,
-            },
-          ],
-        };
-      }
+  process.on("SIGINT", () => {
+    serverLog("Server received SIGINT, cleaning up processes...");
 
-      const stderr = stderrLogs
-        .map((log) => `[${log.timestamp}] ${log.message}`)
-        .join("\n");
+    // Clean up all processes on interrupt signal
+    cleanup();
+    process.exit(0);
+  });
 
-      logToolEnd("get-process-stderr", { id, chunkCount });
+  process.on("SIGTERM", () => {
+    serverLog("Server received SIGTERM, cleaning up processes...");
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: stderr,
-          },
-        ],
-      };
-    } catch (error) {
-      logToolError("get-process-stderr", error);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Error getting process stderr: ${toErrorMessage(error)}`,
-          },
-        ],
-      };
-    }
-  }
-);
+    // Clean up all processes on termination signal
+    cleanup();
+    process.exit(0);
+  });
 
-process.on("beforeExit", () => {
-  serverLog("Server is exiting, cleaning up processes...");
+  process.on("uncaughtException", (error) => {
+    serverLog(`Uncaught exception: ${toErrorMessage(error)}`);
+    // Clean up all processes on uncaught exception
+    cleanup();
+    process.exit(1);
+  });
 
-  // Clean up all processes before exiting
-  cleanup();
-});
-
-process.on("SIGINT", () => {
-  serverLog("Server received SIGINT, cleaning up processes...");
-
-  // Clean up all processes on interrupt signal
-  cleanup();
-  process.exit(0);
-});
-
-process.on("SIGTERM", () => {
-  serverLog("Server received SIGTERM, cleaning up processes...");
-
-  // Clean up all processes on termination signal
-  cleanup();
-  process.exit(0);
-});
-
-process.on("uncaughtException", (error) => {
-  serverLog(`Uncaught exception: ${toErrorMessage(error)}`);
-  // Clean up all processes on uncaught exception
-  cleanup();
-  process.exit(1);
-});
-
-try {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
