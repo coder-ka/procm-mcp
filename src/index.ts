@@ -9,10 +9,12 @@ import {
   ProcessStdoutClient,
 } from "./process-stdout-client.js";
 import { log } from "./logger.js";
+import { toErrorMessage } from "./error.js";
 
 const serverId = nanoid(6);
 type ProcessMetadata = {
   id: string;
+  pid: number | undefined;
   name: string;
   script: string;
   args: string[];
@@ -128,7 +130,7 @@ try {
         }
         const processMetadata = processes[processIndex];
 
-        killProcess(processMetadata);
+        await killProcess(processMetadata);
         processes.splice(processIndex, 1);
 
         logToolEnd("delete-process", { id });
@@ -182,7 +184,7 @@ try {
           processMetadata.status === "running" ||
           processMetadata.status === "error"
         ) {
-          killProcess(processMetadata);
+          await killProcess(processMetadata);
         }
 
         const processId = generateProcessId();
@@ -252,6 +254,7 @@ try {
               type: "text",
               text:
                 `Process ID: ${processMetadata.id}\n` +
+                `Process PID: ${processMetadata.pid}\n` +
                 `Name: ${processMetadata.name}\n` +
                 `Script: ${processMetadata.script}\n` +
                 `Arguments: ${processMetadata.args.join(" ")}\n` +
@@ -355,7 +358,7 @@ try {
           };
         }
         const stdout = stdoutLogs
-          .map((log) => `[${log.timestamp}] ${log.message}`)
+          .map((log) => `[${log.timestamp.toISOString()}] ${log.message}`)
           .join("\n");
 
         logToolEnd("get-process-stdout", { id, chunkCount });
@@ -418,7 +421,7 @@ try {
         }
 
         const stderr = stderrLogs
-          .map((log) => `[${log.timestamp}] ${log.message}`)
+          .map((log) => `[${log.timestamp.toISOString()}] ${log.message}`)
           .join("\n");
 
         logToolEnd("get-process-stderr", { id, chunkCount });
@@ -445,40 +448,55 @@ try {
     }
   );
 
-  process.on("beforeExit", () => {
-    serverLog("Server is exiting, cleaning up processes...");
+  let cleanupped: Promise<void> | undefined;
+  process.on("beforeExit", async () => {
+    if (!cleanupped) {
+      serverLog("Server is exiting, cleaning up processes...");
 
-    // Clean up all processes before exiting
-    cleanup();
+      // Clean up all processes before exiting
+      cleanupped = cleanupped || cleanup();
+      await cleanupped;
+    }
   });
 
-  process.on("SIGINT", () => {
+  process.on("SIGINT", async () => {
     serverLog("Server received SIGINT, cleaning up processes...");
 
     // Clean up all processes on interrupt signal
-    cleanup();
+    cleanupped = cleanupped || cleanup();
+    await cleanupped;
     process.exit(0);
   });
 
-  process.on("SIGTERM", () => {
+  process.on("SIGTERM", async () => {
     serverLog("Server received SIGTERM, cleaning up processes...");
 
     // Clean up all processes on termination signal
-    cleanup();
+    cleanupped = cleanupped || cleanup();
+    await cleanupped;
     process.exit(0);
   });
 
-  process.on("uncaughtException", (error) => {
+  process.on("uncaughtException", async (error) => {
     serverLog(`Uncaught exception: ${toErrorMessage(error)}`);
     // Clean up all processes on uncaught exception
-    cleanup();
+    cleanupped = cleanupped || cleanup();
+    await cleanupped;
     process.exit(1);
+  });
+
+  process.stdin.on("close", async () => {
+    serverLog("Server stdin closed, cleaning up processes...");
+    // Clean up all processes when stdin is closed
+    cleanupped = cleanupped || cleanup();
+    await cleanupped;
+    process.exit(0);
   });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  serverLog(`Server started with ID: ${serverId}.`);
+  serverLog(`Server started with ID: ${serverId}, PID: ${process.pid}.`);
 } catch (error) {
   serverLog(`Error starting server: ${toErrorMessage(error)}`);
   process.exit(1);
@@ -494,19 +512,14 @@ function generateProcessId() {
 }
 
 // Get the error output of a process by ID
-function cleanup() {
+async function cleanup() {
   serverLog("Cleaning up all processes...");
 
   try {
     // Kill all child processes
-    let processMetadata: ProcessMetadata | undefined;
-    while ((processMetadata = processes.pop())) {
-      try {
-        killProcess(processMetadata);
-      } catch (error) {
-        console.error(`Error killing process ${processMetadata.id}:`, error);
-      }
-    }
+    await Promise.all(
+      processes.map((processMetadata) => killProcess(processMetadata))
+    );
 
     serverLog("All processes cleaned up successfully.");
   } catch (error) {
@@ -533,13 +546,13 @@ async function startProcess(
 
     const childProcess = spawn(script, args || [], {
       cwd,
-      shell: true,
     });
 
     childProcess.on("spawn", () => {
       const processMetadata = processes.find((p) => p.id === processId);
       if (processMetadata) {
         processMetadata.status = "running";
+        processMetadata.pid = childProcess.pid;
       }
     });
 
@@ -582,6 +595,7 @@ async function startProcess(
 
     return {
       id: processId,
+      pid: childProcess.pid,
       name: name || command,
       script,
       args: args || [],
@@ -599,7 +613,7 @@ async function startProcess(
   }
 }
 
-function killProcess(processMetadata: ProcessMetadata) {
+async function killProcess(processMetadata: ProcessMetadata) {
   serverLog(
     `Killing process: ${processMetadata.name} (ID: ${processMetadata.id})`
   );
@@ -610,17 +624,20 @@ function killProcess(processMetadata: ProcessMetadata) {
 
     const pid = processMetadata.process.pid;
     if (pid) {
-      kill(pid, (err) => {
-        if (err) {
-          serverLog(
-            `Error killing process: ${processMetadata.name} (ID: ${processMetadata.id}) - ${err}`
-          );
-          throw err;
-        } else {
-          serverLog(
-            `Process killed successfully: ${processMetadata.name} (ID: ${processMetadata.id})`
-          );
-        }
+      return new Promise<void>((resolve, reject) => {
+        kill(pid, (err) => {
+          if (err) {
+            serverLog(
+              `Error killing process: ${processMetadata.name} (ID: ${processMetadata.id}) - ${err}`
+            );
+            reject(err);
+          } else {
+            serverLog(
+              `Process killed successfully: ${processMetadata.name} (ID: ${processMetadata.id})`
+            );
+            resolve();
+          }
+        });
       });
     }
   } catch (error) {
@@ -649,18 +666,4 @@ function logToolEnd(toolName: string, result: any) {
 
 function logToolError(toolName: string, error: any) {
   serverLog(`Tool error: ${toolName} - ${toErrorMessage(error)}`);
-}
-
-function isError(error: unknown): error is Error {
-  return (
-    error instanceof Error ||
-    (typeof error === "object" && error !== null && "message" in error)
-  );
-}
-
-function toErrorMessage(error: unknown): string {
-  if (isError(error)) {
-    return error.message;
-  }
-  return String(error);
 }

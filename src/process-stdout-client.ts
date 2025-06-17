@@ -4,9 +4,11 @@ import { Readable } from "stream";
 import { createServerDir } from "./server-dir.js";
 import sqlite3 from "sqlite3";
 import { mkdirp } from "mkdirp";
+import { log } from "./logger.js";
+import { toErrorMessage } from "./error.js";
 
 export type ProcessStdoutChunk = {
-  timestamp: string;
+  timestamp: Date;
   message: string;
 };
 
@@ -43,7 +45,7 @@ export async function createProcessStdoutClient({
 
   await new Promise<void>((resolve, reject) => {
     db.run(
-      "CREATE TABLE IF NOT EXISTS logs (timestamp TEXT, message TEXT)",
+      "CREATE TABLE IF NOT EXISTS logs (timestamp INTEGER, message TEXT)",
       (err) => {
         if (err) {
           reject(err);
@@ -58,33 +60,42 @@ export async function createProcessStdoutClient({
 
   const onData = (chunk: Buffer) => {
     const message = chunk.toString().trim();
-    const timestamp = new Date().toISOString();
+    const timestamp = Date.now();
 
     updateQueue.unshift(async () => {
-      await Promise.all([
-        new Promise<void>(async (resolve, reject) => {
-          db.run(
-            "INSERT INTO logs (timestamp, message) VALUES (?, ?)",
-            [timestamp, message],
-            (err) => {
-              if (err) {
-                reject(err);
-              } else {
-                resolve();
+      try {
+        await Promise.all([
+          new Promise<void>(async (resolve, reject) => {
+            db.run(
+              "INSERT INTO logs (timestamp, message) VALUES (?, ?)",
+              [timestamp, message],
+              (err) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
               }
-            }
-          );
-        }),
-        new Promise<void>((resolve, reject) => {
-          fs.appendFile(textFilePath, message, { encoding: "utf8" }, (err) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve();
-            }
-          });
-        }),
-      ]);
+            );
+          }),
+          new Promise<void>((resolve, reject) => {
+            fs.appendFile(
+              textFilePath,
+              message,
+              { encoding: "utf8" },
+              (err) => {
+                if (err) {
+                  reject(err);
+                } else {
+                  resolve();
+                }
+              }
+            );
+          }),
+        ]);
+      } catch (error) {
+        serverLog(`Error writing log: ${toErrorMessage(error)}`, serverId);
+      }
     });
   };
 
@@ -104,7 +115,7 @@ export async function createProcessStdoutClient({
             } else {
               resolve(
                 rows.map((row) => ({
-                  timestamp: row.timestamp,
+                  timestamp: new Date(row.timestamp),
                   message: row.message,
                 }))
               );
@@ -146,4 +157,8 @@ function createUpdateQueue() {
       });
     },
   };
+}
+
+function serverLog(message: string, serverId: string) {
+  log(message, { id: serverId });
 }
