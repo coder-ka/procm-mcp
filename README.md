@@ -81,8 +81,8 @@ Add this to your `CLAUDE.md` to teach LLMs how to use this MCP server:
 # CLAUDE.md
 
 ### Process Management
-
-When starting processes, please use the procm-mcp tools.
+- When starting processes, please use the procm-mcp tools.
+- Split into script and args
 ```
 
 ## License
