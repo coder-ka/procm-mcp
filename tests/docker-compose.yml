@@ -1,0 +1,8 @@
+services:
+  nginx-test:
+    image: nginx:alpine
+    container_name: procm-nginx-test
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx-test.conf:/etc/nginx/nginx.conf:ro

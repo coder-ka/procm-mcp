@@ -9,5 +9,5 @@ export function toErrorMessage(error: unknown): string {
   if (isError(error)) {
     return error.message;
   }
-  return String(error);
+  return JSON.stringify(error);
 }

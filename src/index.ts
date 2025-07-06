@@ -12,6 +12,7 @@ import { log } from "./logger.js";
 import { toErrorMessage } from "./error.js";
 
 const serverId = nanoid(6);
+const logServerId = `${serverId}(${process.pid})`;
 type ProcessMetadata = {
   id: string;
   pid: number | undefined;
@@ -465,7 +466,7 @@ try {
     // Clean up all processes on interrupt signal
     cleanupped = cleanupped || cleanup();
     await cleanupped;
-    process.exit(0);
+    exitProcess(0);
   });
 
   process.on("SIGTERM", async () => {
@@ -474,7 +475,7 @@ try {
     // Clean up all processes on termination signal
     cleanupped = cleanupped || cleanup();
     await cleanupped;
-    process.exit(0);
+    exitProcess(0);
   });
 
   process.on("uncaughtException", async (error) => {
@@ -482,7 +483,7 @@ try {
     // Clean up all processes on uncaught exception
     cleanupped = cleanupped || cleanup();
     await cleanupped;
-    process.exit(1);
+    exitProcess(1);
   });
 
   process.stdin.on("close", async () => {
@@ -490,7 +491,7 @@ try {
     // Clean up all processes when stdin is closed
     cleanupped = cleanupped || cleanup();
     await cleanupped;
-    process.exit(0);
+    exitProcess(0);
   });
 
   const transport = new StdioServerTransport();
@@ -499,7 +500,7 @@ try {
   serverLog(`Server started with ID: ${serverId}, PID: ${process.pid}.`);
 } catch (error) {
   serverLog(`Error starting server: ${toErrorMessage(error)}`);
-  process.exit(1);
+  exitProcess(1);
 }
 
 // ************************
@@ -577,13 +578,13 @@ async function startProcess(
         id: processId,
         type: "stdout",
         readable: childProcess.stdout,
-        serverId,
+        serverId: logServerId,
       }),
       await createProcessStdoutClient({
         id: processId,
         type: "stderr",
         readable: childProcess.stderr,
-        serverId,
+        serverId: logServerId,
       }),
     ]);
 
@@ -619,26 +620,37 @@ async function killProcess(processMetadata: ProcessMetadata) {
   );
 
   try {
-    processMetadata.stdoutClient.close();
-    processMetadata.stderrClient.close();
-
     const pid = processMetadata.process.pid;
     if (pid) {
-      return new Promise<void>((resolve, reject) => {
-        kill(pid, (err) => {
-          if (err) {
-            serverLog(
-              `Error killing process: ${processMetadata.name} (ID: ${processMetadata.id}) - ${err}`
-            );
-            reject(err);
-          } else {
-            serverLog(
-              `Process killed successfully: ${processMetadata.name} (ID: ${processMetadata.id})`
-            );
-            resolve();
-          }
-        });
+      const processExited = new Promise<void>((resolve) => {
+        const onExit = () => {
+          clearTimeout(timeoutId);
+          serverLog(
+            `Process exited: ${processMetadata.name} (ID: ${processMetadata.id})`
+          );
+          resolve();
+        };
+        const timeoutId = setTimeout(() => {
+          serverLog(
+            `Process did not exit in time, force killing: ${processMetadata.name} (ID: ${processMetadata.id})`
+          );
+          killProcessTree(pid, processMetadata, true);
+        }, 10 * 1000);
+        processMetadata.process.on("exit", onExit);
       });
+
+      await killProcessTree(pid, processMetadata);
+
+      await processExited;
+
+      await Promise.all([
+        processMetadata.stdoutClient.close(),
+        processMetadata.stderrClient.close(),
+      ]);
+    } else {
+      serverLog(
+        `Process with ID ${processMetadata.id} has no PID, cannot kill.`
+      );
     }
   } catch (error) {
     serverLog(
@@ -653,7 +665,7 @@ function createCommand(script: string, args: string[] | undefined): string {
 }
 
 function serverLog(message: string) {
-  log(message, { id: serverId });
+  log(message, { id: logServerId });
 }
 
 function logToolStart(toolName: string, args: any) {
@@ -666,4 +678,32 @@ function logToolEnd(toolName: string, result: any) {
 
 function logToolError(toolName: string, error: any) {
   serverLog(`Tool error: ${toolName} - ${toErrorMessage(error)}`);
+}
+
+function exitProcess(code: number) {
+  serverLog(`Exiting process with code: ${code}`);
+  process.exit(code);
+}
+
+async function killProcessTree(
+  pid: number,
+  processMetadata: ProcessMetadata,
+  force = false
+): Promise<void> {
+  new Promise<void>((resolve, reject) => {
+    kill(pid, force ? "SIGKILL" : "SIGTERM", async (err) => {
+      if (err) {
+        serverLog(
+          `Error killing process: ${processMetadata.name} (ID: ${processMetadata.id}) - ${err}`
+        );
+        reject(err);
+      } else {
+        // await sleep(5000);
+        serverLog(
+          `Process killed successfully: ${processMetadata.name} (ID: ${processMetadata.id})`
+        );
+        resolve();
+      }
+    });
+  });
 }
