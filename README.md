@@ -51,9 +51,13 @@ npm i -D procm-mcp
 Add this to your `CLAUDE.md` to teach LLMs how to use this MCP server:
 
 ```md
+# CLAUDE.md
+
 ### Process Management
-- When starting processes, please use the procm-mcp tools.
-- Split into script and args
+
+- Use procm-mcp for launching processes.
+- Make sure to separate script and args properly. For example, do not specify node index.js as the script. Instead, use script: 'node' and args: ['index.js'].
+- When launching docker-compose or similar tools, do not use options like -d that run in the background. Always launch them in the foreground.
 ```
 
 ## License
