@@ -10,6 +10,11 @@ import {
 } from "./process-stdout-client.js";
 import { log } from "./logger.js";
 import { toErrorMessage } from "./error.js";
+import {
+  allowProcessCreation,
+  checkProcessCreationAllowed,
+} from "./allowed-process-creations.js";
+import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 const serverId = nanoid(6);
 const logServerId = `${serverId}(${process.pid})`;
@@ -49,6 +54,63 @@ try {
   });
 
   server.tool(
+    "allow-process-creation",
+    "Allow process creation",
+    {
+      script: z.string(),
+      args: z.array(z.string()).optional(),
+      cwd: z.string().optional(),
+    },
+    async ({ script, args = [], cwd = process.cwd() }) => {
+      logToolStart("allow-process-creation", {
+        script,
+        args,
+        cwd,
+      });
+
+      try {
+        const validateScriptError = validateScript(script);
+        if (validateScriptError) {
+          return validateScriptError;
+        }
+
+        await allowProcessCreation({
+          script,
+          args,
+          cwd,
+        });
+
+        logToolEnd("allow-process-creation", {
+          script,
+          args,
+          cwd,
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Process creation allowed for script: ${script} with args: ${args.join(
+                " "
+              )} in cwd: ${cwd}.`,
+            },
+          ],
+        };
+      } catch (error) {
+        logToolError("allow-process-creation", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error allowing process creation: ${toErrorMessage(error)}`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
     "start-process",
     "Start a new process",
     {
@@ -57,7 +119,7 @@ try {
       args: z.array(z.string()).optional(),
       cwd: z.string(),
     },
-    async ({ script, name, args, cwd }) => {
+    async ({ script, name, args = [], cwd = process.cwd() }) => {
       logToolStart("start-process", {
         script,
         name,
@@ -66,17 +128,27 @@ try {
       });
 
       try {
-        if (script.includes(" ")) {
+        const isAllowed = await checkProcessCreationAllowed({
+          script,
+          args: args,
+          cwd: cwd,
+        });
+        if (!isAllowed) {
           return {
             content: [
               {
                 type: "text",
-                text: `Script name cannot contain spaces. Please split the command into script and args.In this case, script: "${
-                  script.split(" ")[0]
-                }", args: ["${script.split(" ").slice(1).join('", "')}"]`,
+                text: `Process creation is not allowed for script: ${script} with args: ${args.join(
+                  " "
+                )} in cwd: ${cwd}. Please allow it first using the allow-process-creation tool.`,
               },
             ],
           };
+        }
+
+        const validateScriptError = validateScript(script);
+        if (validateScriptError) {
+          return validateScriptError;
         }
 
         const processId = generateProcessId();
@@ -519,6 +591,22 @@ try {
 // ************************
 // *** helper functions ***
 // ************************
+
+// Validate the script name and return an error message if it contains spaces
+function validateScript(script: string): CallToolResult | undefined {
+  if (script.includes(" ")) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `Script name cannot contain spaces. Please split the command into script and args.In this case, script: "${
+            script.split(" ")[0]
+          }", args: ["${script.split(" ").slice(1).join('", "')}"]`,
+        },
+      ],
+    };
+  }
+}
 
 // Get the error output of a process by ID
 function generateProcessId() {

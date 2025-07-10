@@ -45,6 +45,16 @@ npm i -D procm-mcp
 - `get-process-stderr` Retrieve stderr logs from a process
   - `id` (required): The process ID
   - `chunkCount` (optional): Number of recent log entries to retrieve (default: 10)
+- `allow-process-creation` Allow specific processes to be created
+  - `script` (required): The script/command to allow
+  - `args` (optional): Array of arguments
+  - `cwd` (optional): Working directory
+
+## Security
+
+procm-mcp is designed with security in mind. It implements a permission system that allows only specific commands to be executed in specific directories, preventing arbitrary command execution. You can pre-approve specific processes using the `allow-process-creation` tool to whitelist certain commands before they are executed.
+
+**Important**: Be cautious when using `allow-*` tools as they grant execution permissions to LLMs. Do not grant unconditional execution permissions without careful consideration of the security implications.
 
 ## Teaching LLMs
 

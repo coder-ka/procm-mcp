@@ -1,6 +1,6 @@
-import { tmpdir } from "os";
 import path from "path";
+import { ProcmMcpDir } from "./procm-mcp-dir.js";
 
-export function createServerDir({ serverId }: { serverId: string }) {
-  return path.join(tmpdir(), "procm-mcp", serverId);
+export function ServerDir({ serverId }: { serverId: string }) {
+  return path.join(ProcmMcpDir(), serverId);
 }

@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { Readable } from "stream";
-import { createServerDir } from "./server-dir.js";
+import { ServerDir } from "./server-dir.js";
 import sqlite3 from "sqlite3";
 import { mkdirp } from "mkdirp";
 import { log } from "./logger.js";
@@ -28,7 +28,7 @@ export async function createProcessStdoutClient({
   readable: Readable;
   serverId: string;
 }): Promise<ProcessStdoutClient> {
-  const serverDir = createServerDir({ serverId });
+  const serverDir = ServerDir({ serverId });
   const filePath = path.join(serverDir, "processes", `${id}-${type}.sqlite3`);
   const textFilePath = path.join(serverDir, "processes", `${id}-${type}.log`);
   await mkdirp(path.dirname(filePath));
