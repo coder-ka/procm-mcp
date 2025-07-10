@@ -66,6 +66,19 @@ try {
       });
 
       try {
+        if (script.includes(" ")) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Script name cannot contain spaces. Please split the command into script and args.In this case, script: "${
+                  script.split(" ")[0]
+                }", args: ["${script.split(" ").slice(1).join('", "')}"]`,
+              },
+            ],
+          };
+        }
+
         const processId = generateProcessId();
         const command = createCommand(script, args);
         const startedProcess = await startProcess(
