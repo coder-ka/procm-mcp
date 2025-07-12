@@ -2,7 +2,7 @@
 
 A Model Context Protocol (MCP) server for process management.
 
-# Supported features
+## Supported features
 
 - Secure and automatable process creation
 - Cleanup created processes automatically on termination (e.g. exiting claude code)
