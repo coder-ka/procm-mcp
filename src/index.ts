@@ -54,7 +54,7 @@ try {
   });
 
   server.tool(
-    "allow-process-creation",
+    "allow-start-process",
     "Allow process creation",
     {
       script: z.string(),
@@ -62,7 +62,7 @@ try {
       cwd: z.string().optional(),
     },
     async ({ script, args = [], cwd = process.cwd() }) => {
-      logToolStart("allow-process-creation", {
+      logToolStart("allow-start-process", {
         script,
         args,
         cwd,
@@ -80,7 +80,7 @@ try {
           cwd,
         });
 
-        logToolEnd("allow-process-creation", {
+        logToolEnd("allow-start-process", {
           script,
           args,
           cwd,
@@ -97,7 +97,7 @@ try {
           ],
         };
       } catch (error) {
-        logToolError("allow-process-creation", error);
+        logToolError("allow-start-process", error);
         return {
           content: [
             {
@@ -140,7 +140,7 @@ try {
                 type: "text",
                 text: `Process creation is not allowed for script: ${script} with args: ${args.join(
                   " "
-                )} in cwd: ${cwd}. Please allow it first using the allow-process-creation tool.`,
+                )} in cwd: ${cwd}. Please allow it first using the allow-start-process tool.`,
               },
             ],
           };

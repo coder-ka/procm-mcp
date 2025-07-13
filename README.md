@@ -8,6 +8,8 @@ A Model Context Protocol (MCP) server for process management.
 - Cleanup created processes automatically on termination (e.g. exiting claude code)
 - Common process management features supported, restarting, deleting, checking status or retreving stdout/stderr of processes
 
+Using these features, LLMs start processes like development servers, docker-compose, or test watchers and check their outputs to fix bugs automatically.
+
 ## Installation
 
 ```bash
@@ -55,7 +57,7 @@ Add this to your `CLAUDE.md` to teach LLMs how to use this MCP server:
 
 ## Tools
 
-- `allow-process-creation` Allow specific processes to be created
+- `allow-start-process` Allow specific processes to be created
   - `script` (required): The script/command to allow
   - `args` (optional): Array of arguments
   - `cwd` (optional): Working directory
