@@ -276,9 +276,8 @@ try {
           await killProcess(processMetadata);
         }
 
-        const processId = generateProcessId();
         const newProcess = await startProcess(
-          processId,
+          id,
           processMetadata.script,
           processMetadata.name,
           processMetadata.args,
