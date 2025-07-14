@@ -66,6 +66,7 @@ Add this to your `CLAUDE.md` to teach LLMs how to use this MCP server:
   - `name` (optional): A friendly name for the process
   - `args` (optional): Array of arguments to pass to the script
   - `cwd` (required): Working directory for the process
+  - `envs` (optional): Environment variables to set for the process
 - `delete-process` Stop and remove a process by ID
   - `id` (required): The process ID
 - `restart-process` Restart an existing process by ID
