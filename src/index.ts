@@ -25,6 +25,7 @@ type ProcessMetadata = {
   script: string;
   args: string[];
   cwd: string;
+  envs: Record<string, string>;
   status: "spawning" | "running" | "exited" | "error";
   error: string | null;
   exitCode: number | null;
@@ -118,8 +119,9 @@ try {
       name: z.string().optional(),
       args: z.array(z.string()).optional(),
       cwd: z.string(),
+      envs: z.record(z.string()).optional(),
     },
-    async ({ script, name, args = [], cwd = process.cwd() }) => {
+    async ({ script, name, args = [], cwd = process.cwd(), envs = {} }) => {
       logToolStart("start-process", {
         script,
         name,
@@ -158,7 +160,8 @@ try {
           script,
           name,
           args,
-          cwd
+          cwd,
+          envs
         );
 
         processes.push(startedProcess);
@@ -279,7 +282,8 @@ try {
           processMetadata.script,
           processMetadata.name,
           processMetadata.args,
-          processMetadata.cwd
+          processMetadata.cwd,
+          processMetadata.envs
         );
         processes[processIndex] = newProcess;
 
@@ -606,6 +610,17 @@ function validateScript(script: string): CallToolResult | undefined {
       ],
     };
   }
+
+  if (script.includes("=")) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `You seems to be trying to setting an environment variable before command, Please specify the environment variable in the "envs" field`,
+        },
+      ],
+    };
+  }
 }
 
 // Get the error output of a process by ID
@@ -635,7 +650,8 @@ async function startProcess(
   script: string,
   name: string | undefined,
   args: string[] | undefined,
-  cwd: string
+  cwd: string,
+  envs: Record<string, string>
 ): Promise<ProcessMetadata> {
   serverLog(
     `Starting process: ${name || script} with args: ${
@@ -648,6 +664,10 @@ async function startProcess(
 
     const childProcess = spawn(script, args || [], {
       cwd,
+      env: {
+        ...process.env,
+        ...envs,
+      },
     });
 
     childProcess.on("spawn", () => {
@@ -702,6 +722,7 @@ async function startProcess(
       script,
       args: args || [],
       cwd,
+      envs,
       status: "spawning",
       error: null,
       exitCode: null,
