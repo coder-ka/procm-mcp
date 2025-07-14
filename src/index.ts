@@ -743,32 +743,24 @@ async function killProcess(processMetadata: ProcessMetadata) {
   try {
     const pid = processMetadata.process.pid;
     if (pid) {
-      const processExited = new Promise<void>((resolve, reject) => {
+      const processExited = new Promise<void>((resolve) => {
         const onExit = () => {
           clearTimeout(forceKillTimeoutId);
-          clearTimeout(timeoutId);
           serverLog(
             `Process exited: ${processMetadata.name} (ID: ${processMetadata.id})`
           );
           resolve();
         };
         const forceKillTimeoutId = setTimeout(() => {
+          processMetadata.process.off("exit", onExit);
+
           serverLog(
             `Process did not exit in time, force killing: ${processMetadata.name} (ID: ${processMetadata.id})`
           );
           killProcessTree(pid, processMetadata, true);
-        }, 10 * 1000);
-        const timeoutId = setTimeout(() => {
-          serverLog(
-            `Rejecting killing process ${processMetadata.name} because of timeout. (ID: ${processMetadata.id})`
-          );
 
-          reject(
-            new Error(
-              `Process did not exit in time: ${processMetadata.name} (ID: ${processMetadata.id})`
-            )
-          );
-        }, 30 * 1000);
+          resolve();
+        }, 10 * 1000);
         processMetadata.process.on("exit", onExit);
       });
 
