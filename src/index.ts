@@ -128,6 +128,11 @@ try {
       });
 
       try {
+        const validateScriptError = validateScript(script);
+        if (validateScriptError) {
+          return validateScriptError;
+        }
+
         const isAllowed = await checkProcessCreationAllowed({
           script,
           args: args,
@@ -144,11 +149,6 @@ try {
               },
             ],
           };
-        }
-
-        const validateScriptError = validateScript(script);
-        if (validateScriptError) {
-          return validateScriptError;
         }
 
         const processId = generateProcessId();
