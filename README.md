@@ -42,19 +42,6 @@ I call it "allow-x pattern", which can balances security and usability in MCP.
 
 **Warning: Do not permit LLMs to use `allow-start-process` without confirmation.That means "Do anything you want to".**
 
-## Teaching LLMs
-
-Add this to your `CLAUDE.md` to teach LLMs how to use this MCP server:
-
-```md
-# CLAUDE.md
-
-### Process Management
-
-- Use procm-mcp for launching processes.
-- When launching docker-compose or similar tools, do not use options like -d that run in the background. Always launch them in the foreground.
-```
-
 ## Tools
 
 - `allow-start-process` Allow specific processes to be created
