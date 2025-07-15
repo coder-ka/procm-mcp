@@ -67,7 +67,7 @@ Add this to your `CLAUDE.md` to teach LLMs how to use this MCP server:
   - `args` (optional): Array of arguments to pass to the script
   - `cwd` (required): Working directory for the process
   - `envs` (optional): Environment variables to set for the process
-- `delete-process` Stop and remove a process by ID
+- `delete-process` Stop and remove a process by ID.The default signal is SIGTERM, but SIGKILL(force killing) will be sent after 10 seconds unless the process exits.
   - `id` (required): The process ID
 - `restart-process` Restart an existing process by ID
   - `id` (required): The process ID
