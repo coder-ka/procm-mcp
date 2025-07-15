@@ -1,6 +1,6 @@
 {
   "type": "module",
-  "version": "0.0.30",
+  "version": "0.0.31",
   "name": "procm-mcp",
   "description": "A Model Context Protocol (MCP) server for process management.",
   "author": "Katsuyuki Oeda <coder.ka.issues@gmail.com>",

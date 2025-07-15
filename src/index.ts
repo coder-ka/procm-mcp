@@ -113,7 +113,8 @@ try {
 
   server.tool(
     "start-process",
-    "Start a new process",
+    `Start a new process.
+Warning: Do not invoke background processes that will not exit automatically, and stdout/stderr will not be captured.`,
     {
       script: z.string(),
       name: z.string().optional(),
