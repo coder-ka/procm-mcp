@@ -270,12 +270,7 @@ Warning: Do not invoke background processes that will not exit automatically, an
         }
         const processMetadata = processes[processIndex];
 
-        if (
-          processMetadata.status === "running" ||
-          processMetadata.status === "error"
-        ) {
-          await killProcess(processMetadata);
-        }
+        await killProcess(processMetadata);
 
         const newProcess = await startProcess(
           id,
