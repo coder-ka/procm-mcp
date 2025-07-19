@@ -169,6 +169,11 @@ try {
           cwd,
         });
 
+        const validateScriptError = validateScript(script);
+        if (validateScriptError) {
+          return validateScriptError;
+        }
+
         await deleteAllowedProcessCreation({
           script,
           args,
