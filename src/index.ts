@@ -13,6 +13,8 @@ import { toErrorMessage } from "./error.js";
 import {
   allowProcessCreation,
   checkProcessCreationAllowed,
+  deleteAllowedProcessCreation,
+  getAllowedProcesses,
 } from "./allowed-process-creations.js";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
@@ -107,6 +109,98 @@ try {
             },
           ],
         };
+      }
+    }
+  );
+
+  // list allowed processes
+  server.tool(
+    "list-allowed-processes-in-cwd",
+    "List allowed processes in current working directory",
+    {
+      cwd: z.string().optional(),
+    },
+    async ({ cwd = process.cwd() }) => {
+      try {
+        logToolStart("list-allowed-processes", {});
+
+        const allowedProcesses = await getAllowedProcesses();
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Allowed processes:\n${allowedProcesses
+                .filter((x) => x.cwd === cwd)
+                .map((x) => `${x.script} ${x.args.join(" ")} in ${x.cwd}`)
+                .join("\n")}`,
+            },
+          ],
+        };
+      } catch (error) {
+        logToolError("list-allowed-processes", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error listing allowed processes: ${toErrorMessage(error)}`,
+            },
+          ],
+        };
+      } finally {
+        logToolEnd("list-allowed-processes", {});
+      }
+    }
+  );
+
+  // delete allowed process
+  server.tool(
+    "delete-allowed-process",
+    "Delete an allowed process",
+    {
+      script: z.string(),
+      args: z.array(z.string()).optional(),
+      cwd: z.string().optional(),
+    },
+    async ({ script, args = [], cwd = process.cwd() }) => {
+      try {
+        logToolStart("delete-allowed-process", {
+          script,
+          args,
+          cwd,
+        });
+
+        await deleteAllowedProcessCreation({
+          script,
+          args,
+          cwd,
+        });
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Allowed process deleted for script: ${script} with args: ${args.join(
+                " "
+              )} in cwd: ${cwd}.`,
+            },
+          ],
+        };
+      } catch (error) {
+        logToolError("delete-allowed-process", error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Error deleting allowed process: ${toErrorMessage(error)}`,
+            },
+          ],
+        };
+      } finally {
+        logToolEnd("delete-allowed-process", {
+          script,
+          args,
+          cwd,
+        });
       }
     }
   );

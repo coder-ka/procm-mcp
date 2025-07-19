@@ -42,6 +42,32 @@ export async function allowProcessCreation(request: ProcessCreation) {
   await writeJson(allowedCreations);
 }
 
+export async function getAllowedProcesses(): Promise<ProcessCreation[]> {
+  return readJson();
+}
+
+export async function deleteAllowedProcessCreation(request: ProcessCreation) {
+  const allowedCreations = await readJson();
+
+  const tobeDeleted: ProcessCreation = {
+    script: request.script,
+    args: request.args,
+    cwd: request.cwd,
+  };
+
+  const index = allowedCreations.findIndex(
+    (x) =>
+      x.script === tobeDeleted.script &&
+      x.args.every((y, i) => y === tobeDeleted.args[i]) &&
+      x.cwd === tobeDeleted.cwd
+  );
+
+  if (index !== -1) {
+    allowedCreations.splice(index, 1);
+    await writeJson(allowedCreations);
+  }
+}
+
 function JsonPath() {
   return path.join(ProcmMcpDir(), "allowed-process-creations.json");
 }
